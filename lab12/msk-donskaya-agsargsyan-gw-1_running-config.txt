@@ -1,0 +1,195 @@
+!
+version 12.4
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+service password-encryption
+!
+hostname msk-donskaya-agsargsyan-gw-1
+!
+!
+!
+enable secret 5 $1$mERr$hx5rVt7rPNoS4wqbXKX7m0
+!
+!
+ip dhcp excluded-address 10.128.3.1 10.128.3.29
+ip dhcp excluded-address 10.128.3.200 10.128.3.254
+ip dhcp excluded-address 10.128.4.1 10.128.4.29
+ip dhcp excluded-address 10.128.4.200 10.128.4.254
+ip dhcp excluded-address 10.128.5.1 10.128.5.29
+ip dhcp excluded-address 10.128.5.200 10.128.5.254
+ip dhcp excluded-address 10.128.6.1 10.128.6.29
+ip dhcp excluded-address 10.128.6.200 10.128.6.254
+!
+ip dhcp pool dk
+ network 10.128.3.0 255.255.255.0
+ default-router 10.128.3.1
+ dns-server 10.128.0.5
+ip dhcp pool departments
+ network 10.128.4.0 255.255.255.0
+ default-router 10.128.4.1
+ dns-server 10.128.0.5
+ip dhcp pool adm
+ network 10.128.5.0 255.255.255.0
+ default-router 10.128.5.1
+ dns-server 10.128.0.5
+ip dhcp pool other
+ network 10.128.6.0 255.255.255.0
+ default-router 10.128.6.1
+ dns-server 10.128.0.5
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+username admin secret 5 $1$mERr$hx5rVt7rPNoS4wqbXKX7m0
+!
+!
+!
+!
+!
+!
+!
+!
+ip domain-name donskaya.rudn.edu
+ip name-server 10.128.0.5
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface FastEthernet0/0
+ no ip address
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/0.2
+ description management
+ encapsulation dot1Q 2
+ ip address 10.128.1.1 255.255.255.0
+ ip access-group management-out out
+!
+interface FastEthernet0/0.3
+ description servers
+ encapsulation dot1Q 3
+ ip address 10.128.0.1 255.255.255.0
+ ip access-group servers-out out
+ ip nat inside
+!
+interface FastEthernet0/0.101
+ description dk
+ encapsulation dot1Q 101
+ ip address 10.128.3.1 255.255.255.0
+ ip nat inside
+!
+interface FastEthernet0/0.102
+ description departments
+ encapsulation dot1Q 102
+ ip address 10.128.4.1 255.255.255.0
+ ip nat inside
+!
+interface FastEthernet0/0.103
+ description adm
+ encapsulation dot1Q 103
+ ip address 10.128.5.1 255.255.255.0
+ ip nat inside
+!
+interface FastEthernet0/0.104
+ description other
+ encapsulation dot1Q 104
+ ip address 10.128.6.1 255.255.255.0
+ ip access-group other-in in
+ ip nat inside
+!
+interface FastEthernet0/1
+ no ip address
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/1.4
+ description internet
+ encapsulation dot1Q 4
+ ip address 198.51.100.2 255.255.255.240
+ ip nat outside
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+ip nat pool main-pool 198.51.100.2 198.51.100.14 netmask 255.255.255.240
+ip nat inside source list nat-inet pool main-pool overload
+ip nat inside source static tcp 10.128.0.2 80 198.51.100.2 80 
+ip nat inside source static tcp 10.128.0.3 20 198.51.100.3 20 
+ip nat inside source static tcp 10.128.0.3 21 198.51.100.3 21 
+ip nat inside source static tcp 10.128.0.4 25 198.51.100.4 25 
+ip nat inside source static tcp 10.128.0.4 110 198.51.100.4 110 
+ip nat inside source static tcp 10.128.6.200 3389 198.51.100.10 3389 
+ip nat inside source static tcp 10.128.6.201 3389 198.51.100.10 3389 
+ip classless
+ip route 0.0.0.0 0.0.0.0 198.51.100.1 
+!
+ip flow-export version 9
+!
+!
+ip access-list extended servers-out
+ remark web
+ permit icmp any any
+ permit tcp any host 10.128.0.2 eq www
+ permit tcp host 10.128.6.200 host 10.128.0.2 range 20 ftp
+ permit tcp host 10.128.6.200 host 10.128.0.2 eq telnet
+ remark file
+ permit tcp 10.128.0.0 0.0.255.255 host 10.128.0.3 eq 445
+ permit tcp any host 10.128.0.3 range 20 ftp
+ remark mail
+ permit tcp any host 10.128.0.4 eq smtp
+ permit tcp any host 10.128.0.4 eq pop3
+ remark dns
+ permit udp 10.128.0.0 0.0.255.255 host 10.128.0.5 eq domain
+ permit tcp host 10.128.6.201 host 10.128.0.2 range 20 ftp
+ permit tcp host 10.128.6.201 host 10.128.0.2 eq telnet
+ip access-list extended other-in
+ remark admin
+ permit ip host 10.128.6.200 any
+ permit ip host 10.128.6.201 any
+ip access-list extended management-out
+ remark admin
+ permit ip host 10.128.6.200 10.128.1.0 0.0.0.255
+ permit ip host 10.128.6.201 10.128.1.0 0.0.0.255
+ip access-list extended nat-inet
+ remark dk
+ permit tcp 10.128.3.0 0.0.0.255 host 192.0.2.11 eq www
+ permit tcp 10.128.3.0 0.0.0.255 host 192.0.2.12 eq www
+ remark departments
+ permit tcp 10.128.4.0 0.0.0.255 host 192.0.2.13 eq www
+ remark adm
+ permit tcp 10.128.5.0 0.0.0.255 host 192.0.2.14 eq www
+ remark admin
+ permit ip host 10.128.6.200 any
+ permit ip host 10.128.6.201 any
+!
+!
+!
+!
+!
+!
+line con 0
+ password 7 0822455D0A16
+ login
+!
+line aux 0
+!
+line vty 0 4
+ password 7 0822455D0A16
+ login
+ transport input ssh
+!
+!
+!
+end
+
